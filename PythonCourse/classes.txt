@@ -1,0 +1,27 @@
+
+
+class Square():
+	def __init__ (self):
+		self.size=1
+		self.colour="white"
+	def findSurface(self):
+		return self.size**2
+
+# object A is class Square
+A=Square()
+
+A.size, A.colour, A.findSurface()
+(1, 'white', 1)
+
+
+B=Square()
+
+B.size=2
+B.colour="blue"
+B.findSurface()
+4
+
+
+
+
+

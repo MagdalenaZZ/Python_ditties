@@ -1,0 +1,8 @@
+NC_001416	x	DEL	139	139	.	.	.	size=1
+NC_001416	x	INS	14266	14266	.	.	.	new_seq=G
+NC_001416	x	SNP	20661	20661	.	.	.	new_seq=G
+NC_001416	x	SUB	21000	21002	.	.	.	new_seq=AGCT;size=3
+NC_001416	x	MOB	22000	22000	.	+	.	duplication_size=100;repeat_name=name
+NC_001416	x	CON	24000	24009	.	.	.	region=NC_001417:10-19;size=10
+NC_001416	x	INV	25000	25099	.	.	.	size=100
+NC_001417	x	AMP	23000	23099	.	.	.	new_copy_number=3;size=100

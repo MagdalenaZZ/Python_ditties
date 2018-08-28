@@ -1,0 +1,4 @@
+chr1	hi	exon	1	1000	.	+	.	ID=x1
+chr1	hi	exon	200	1575	.	+	.	ID=y1
+chr2	hi	exon	1	1000	.	+	.	ID=x2
+chr2	hi	exon	200	1584	.	+	.	ID=y2

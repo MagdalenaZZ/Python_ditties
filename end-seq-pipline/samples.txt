@@ -1,0 +1,2 @@
+SRR3705561	/scratch/DCT/BIOINFCO/jamesc/ibc0002/canela_2016_mol_cell_fastq/SRR3705561.fastq.gz
+SRR3705564	/scratch/DCT/BIOINFCO/jamesc/ibc0002/canela_2016_mol_cell_fastq/SRR3705564.fastq.gz

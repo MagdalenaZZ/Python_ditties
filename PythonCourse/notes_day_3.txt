@@ -1,0 +1,99 @@
+
+
+
+
+for elem in [1,2,3]:
+	print elem
+
+for elem in (1,2,3):
+	print elem
+
+for key in {"one":2 ,"two":2}:
+	print key and key[0]
+
+
+for char in "123":
+	print char
+
+
+for line in open ("file.txt"):
+
+
+
+
+L = range(5)
+
+# Make a list with the values
+[i**2 for i in L]
+[0,1,4,9,16]
+
+# Make a dictionary
+{str(i):i**2 for i in L}
+{'2':4,'4':16}
+
+# Make a dictionary only for even values
+{i**2 for i in L if i%2==0}
+
+
+
+### Map
+
+
+
+def cube(x):
+	return x**3
+
+# List
+L = [0,1,2]
+
+
+map(cube, L)
+[1,8,27]
+
+
+# Set
+S = {1,2,3}
+
+map(cube,S)
+[1,8,27]
+
+
+
+# this function takes two values and add a space between them
+def add(x,y):
+	return x+' '+y
+
+# reduce applies this function to the whole string
+reduce (add,'HELLO')
+'H E L L O'
+
+# Map kind of only works on list
+map(add,'HELLO','HELLO')
+['H H', 'E E', 'L L', 'L L', 'O O']
+
+
+
+
+#### Numpy #######
+
+import numpy as np
+
+
+import random
+
+map(lambda i: random.random(), range(3))
+
+
+x = [map(lambda i: random.random(), range(3)) for j in range(3) ]
+
+X  = np.array(x)
+
+
+X*X
+
+
+
+
+
+
+

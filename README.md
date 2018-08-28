@@ -1,1 +1,7 @@
-# Python_ditties
+
+
+Collected useful Python scripts
+
+
+
+

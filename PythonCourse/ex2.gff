@@ -1,0 +1,7 @@
+##gff-version 2
+##bed_to_gff_converter.py
+
+chr1	bed2gff	score	2	1000	+	exon	.	score;
+chr1	bed2gff	score	201	1575	+	exon	.	score;
+chr2	bed2gff	score	2	1000	+	exon	.	score;
+chr2	bed2gff	score	201	1584	+	exon	.	score;
