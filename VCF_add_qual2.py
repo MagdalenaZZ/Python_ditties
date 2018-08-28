@@ -4,9 +4,8 @@ from __future__ import print_function
 import pysam
 import sys
 import os.path
-import os.system
 import argparse
-
+import subprocess
 
 
 """
@@ -44,7 +43,9 @@ if not os.path.isfile(args.vcf)==True:
 
 # Read input
 output=args.vcf+".qadd.vcf"
-print("Input: ",args.vcf, "Output: " , output)
+output=output.replace('.vcf.gz','')
+#outc= args.vcf+".qadd.vcf.gz"
+print("Input: ",args.vcf, "Output: ")
 
 
 # read the input file
@@ -68,6 +69,8 @@ for r in myvcf:
         vcf_out.write(r)
 
 
+
+#print("bcftools", "view","-O","z","-o",outc,output)
 subprocess.call(["bgzip",output])
 
 exit(0)
