@@ -1,3 +1,5 @@
+
+
 from cyvcf2 import VCF
 
 for variant in VCF('some.vcf.gz'): # or VCF('some.bcf')
