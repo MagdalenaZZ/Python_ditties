@@ -9,6 +9,7 @@ import pysam
 import re
 #from subprocess import call
 import subprocess
+from pprint import pprint
 
 """
 
@@ -19,7 +20,7 @@ Script for parsing a small CNV vcf and outputting stats of regions covered by BE
 
 epi = ('\
     \n\
-	File parser, allowing counting of CNV variaint from VCF files\n\
+	File parser, allowing counting of CNV variant from VCF files\n\
     \n\
 ')
 
@@ -27,7 +28,7 @@ epi = ('\
 parser = argparse.ArgumentParser(description='This script parses a VCF file and extracts regions from a BED file', epilog= epi, formatter_class=argparse.RawTextHelpFormatter)
 
 # Get inputs
-parser.add_argument('-i', '--input', default=None, dest='vcf', nargs='+' , type=str, help="VCF files")
+parser.add_argument('-i', '--input', default=None, dest='vcf', nargs='+',action='append', type=str, help="VCF files")
 parser.add_argument('-b', '--bed', default=None, dest='bed', action='store', required=True, help="BED file")
 
 # Check for no input
@@ -43,286 +44,418 @@ if not os.path.isfile(args.bed)==True:
     sys.exit(1)
 
 
-print ("BED file: ",args.bed)
-print ("VCF files: ", args.vcf)
+#print ("BED file: ",args.bed)
+#print ("VCF files: ", args.vcf)
 
+
+# Create summary output
+
+#print (args.vcf[0][0])
+vcf=args.vcf[0][0]
+output=''.join([args.bed,'.ovls'])
+ou=open(output, 'w')
+
+# Create match output
+output=''.join([args.bed,'.rp'])
+rp=open(output, 'w')
+
+
+# Parse the input BED
 bed= open(args.bed, 'r')
 
-res = {}
-for line in bed:
-    elem = line.split("\t")
-    elem3=elem[3].split("\n")
-    #print(elem[0],elem[1],elem[2],elem[3])
-    lis=elem[0],elem[1],elem[2]
-    res[str(elem3[0])]={}
-    res[str(elem3[0])][lis]='1'
+# Get the total length of reference
+bedtot=0
 
-    #people[3]['married'] = 'No'
+for entry in bed:
+    ent = entry.split("\t")
+    #print (ent[2],ent[1],int(ent[2])-int(ent[1])+1,sep='\t')
+    bedtot+=(int(ent[2])-int(ent[1])+1)
 
-#quit()
+bed.close()
 
-# For each VCF file, do bedtools intersect
+
+## For each VCF file, do bedtools intersect
+
+# Make output dict
+o={}
+
+###############
+def print_dict(dct):
+    for item, amount in dct.iteritems():
+        print('{}:{}'.format(item,amount),',',end='',sep='',file=ou)
+    print('\t',end='',file=ou)
+################
+
+# Header
+print("File","Feature","NoFragsCov","FragsCov","Events","NoEventsPASS","EventsPASS", \
+      "EventPass%","TotLen","TotLenPASS", "TotLenPASS%","CovMinPass","CovMaxPass","CovMinAny","CovMaxAny","CovAveALL","CovAvePASS","SharedFilt%","SharedEvent%","SharedCov%","AveDiffCov","AveCov",sep='\t',file=ou)
+
+
+
+
+# Get comparison values for everything
+
+args.vcf=args.vcf[0]
 
 for vcf in args.vcf:
-    #print (vcf, ["bedtools", "intersect","-b",args.bed,"-a",vcf,"-wo"])
+    #print (vcf)
+    #["bedtools", "intersect","-b",args.bed,"-a",vcf,"-wo"])
     proc = subprocess.Popen(["bedtools", "intersect","-b",args.bed,"-a",vcf,"-wo"], stdout=subprocess.PIPE)
     (out, err) = proc.communicate()
     #print ("OUT:", out)
     out = out.split("\n")
 
-    # For each line in the output
+    # For each line in the output, pick out those that overlap
+    # Save the BED range for each exon
     for el in out:
         # remove empty lines
         if not (re.match('\w+', el)):
-            print ("Match: ", el,":")
+            #print ("Match: ", el,":")
             next
         # Process working lines
         else:
             ele=el.split("\t")
-            print("ELE2: ",el , ':')
+            #print(ele)
+            maxstart=max(int(ele[1]),int(ele[13]))
+            minend=min(int(ele[2]),int(ele[14]))
+            flen=int(minend)-int(maxstart)+1
+            #print(maxstart,ele[1],ele[13],minend,ele[2],ele[14],flen,sep='\t')
+            bedfeature=''.join([ele[12],"_",ele[13],"_",ele[14]])
+            bedregion=''.join([ele[0],"_",ele[1],"_",ele[2]])
+            event=ele[3].split(":")[1]
+            eventR=ele[15].split(":")[1]
 
+            if vcf not in o:
+                o[vcf] = {}
+            if ele[23] not in o[vcf]:
+                o[vcf][ele[23]]={}
+            if bedfeature not in o[vcf][ele[23]]:
+                o[vcf][ele[23]][bedfeature]={}
+            if bedregion not in o[vcf][ele[23]][bedfeature]:
+                o[vcf][ele[23]][bedfeature][bedregion]={}
+            o[vcf][ele[23]][bedfeature][bedregion]['Len']=flen
+            o[vcf][ele[23]][bedfeature][bedregion]['Event'] =event
+            o[vcf][ele[23]][bedfeature][bedregion]['Filter'] =ele[6]
+            o[vcf][ele[23]][bedfeature][bedregion]['Copies'] =ele[9]
+            o[vcf][ele[23]][bedfeature][bedregion]['Name'] =ele[11]
+            o[vcf][ele[23]][bedfeature][bedregion]['EventR'] = eventR
+            o[vcf][ele[23]][bedfeature][bedregion]['FilterR'] = ele[18]
+            o[vcf][ele[23]][bedfeature][bedregion]['CopiesR'] =ele[21]
 
-
-quit()
-
-
-for X in w:
-        ele2= ele[2].split(":") # Canvas:LOH:chr3:10001-4130170
-        cn=ele[4]
-        qual=ele[5]
-        call=ele[6]
-        info=ele[7]
-        format=ele[9].split(":")
-        # ele[10],ele[11],ele[12],ele[13]
-        #print(ele2[1],ele2[2],ele2[3],ele[13])
-        [sstart,send]=ele2[3].split("-")
-
-        for key in res[ele[13]]:
-            #print (key)
-            [chr,start,end]=key
-            nstart = max(sstart,start)
-            nend= min(send,end)
-            #print(nstart,nend)
-
-
-
-# Remove start/end from the overlap
-
-
-# Pick the data to summarise
-
-
-# Create summary number
-
-
-# Create summary picture
-
-
-
-quit()
-
-
-
-# read the input file
-myvcf = pysam.VariantFile(args.vcf, "r")
-
-# create an object of new bed file and open in to write data.
-output=args.vcf+".bed"
-out = open(output, 'w')
-
-
-for r in myvcf:
-
-    #### FILTER OUT #####
-    # Shared called total
-    # Filter out sites which
-    chr = r.chrom
-    pos = r.pos
-    id = str(r.id)
-    varID=':'.join([id.split(":")[0],id.split(":")[1]])
-    #altb = r.ref
-    #altb = r.alts
-    score = r.qual
-    filter = r.filter
-    info = r.info
-    format = r.format
-    samples = r.samples
-    end = r.stop # r.info["END"]
-    strand='.'
-    svtype='NA'
-
-    if 'SVTYPE' in r.info.keys():
-        svtype = r.info.get('SVTYPE', "")
-
-    #for key in r.info.keys():
-    #    data = r.info.get(key, "")
-    #    print (key,data)
-    #    svtype=r.info['SVTYPE']
-
-    # FORMAT
-    #['PR', 'SR', 'RC', 'BC', 'CN', 'MCC']
-
-
-    # Split out Manta calls
-
-    if re.match(r'Manta', varID):
-        pass
-        #print("Manta",chr, pos, end, varID, score, strand, sep='\t')
+            #print("Events",ele[23],bedfeature,bedregion)
 
 
 
 
-    #print (list((r.header.filters)))
-    #print(list((r.header.formats)))
-
-    elif re.match(r'Canvas', varID):
-
-        # Extract relevant information
-        cn='NA'
-        mcc='NA'
-        filter='NA'
-        rc='NA'
-
-        if 'CN' in r.samples[1].keys():
-            cn=r.samples[1]['CN']
-        if 'MCC' in r.samples[1].keys():
-            cn=r.samples[1]['MCC']
-        if 'RC' in r.samples[1].keys():
-            rc=r.samples[1]['RC']
-        for key in r.filter.keys():
-            filter=key
-
-
-        print (chr,pos,end,varID,score,strand,filter,svtype,rc,cn,mcc,sep='\t')
-
-    else:
-
-        print("Unknown",chr, pos, end, varID, score, strand, sep='\t')
+# Summarise all PASS canvas fragments for the same feature
+# Summarise all canvas fragments for the same feature
+# Max depth PASS
 
 
 
-"""
 
-# open up file
-with open(args.vcf, 'rb') as csvfile:
-    reader = csv.reader(csvfile, delimiter ='\t')
-    for row in reader:
-        tsvout =""
-        # pass header
-        if row[0].startswith("#"):
-            pass
-        # CANVAS
-        # only count canvas if Gain or Loss
-        elif "Canvas" in row[2] and "REF" not in row[2]:
-            # add to tsv file
-            varID= row[2].split(":")
-            end = row[7].split('END=')[-1]
-            # if fist line do not add line break
-            if len(tsvout) < 1:
-            # sample chr start end QUAL Filter tool change
-                tsvout += sample + "\t"+ row[0] + "\t"+ row[1]+ "\t"+ end +"\t"+ row[5]+"\t"+ row[6] +\
-                      "\t"+ varID[0]+ "\t"+ varID[1]
+def calculate_fragments(data):
+    ''' Calculate how many fragments in CNV caller covers REF feature '''
+    frags={}
+
+    # Summarise and calculate for each "exon" in "gene"
+    for bedfeature, value2 in o[vcf][feature].items():
+
+        # How many canvas fragments cover the same feature?
+        for key in o[vcf][feature][bedfeature].keys():
+            if key in frags:
+                frags[key]+=1
             else:
-                tsvout += "\n"+ sample + "\t"+ row[0] + "\t"+ row[1]+ "\t"+ end +"\t"+ row[5]+"\t"+ row[6] + \
-                          "\t" + varID[0]+ "\t"+ varID[1]
-            # add to tallies
-            if "PASS" in row:
-                canvasT += 1
-                if "LOSS" in row[2]:
-                    canvasLoss += 1
-                elif "GAIN" in row[2]:
-                    canvasGain += 1
-            print(tsvout)
-        # MANTA
-        # tally up Manta outputs
-        elif "Manta" in row[2]:
-            # find SV type
-            varID = row[2].split(":")
-            QUAL = "."
-            vcffilter = "."
-            end = "."
-            # identify translocations
-            if "MantaBND" in row[2]:
-            # No Ends in BND cases as they are translocations - add N/A to end field for the TSV
-                end = "."
-                QUAL = "."
-                vcffilter = row[6]
-                # add to tallys
-                if "PASS" in row:
-                    MantaT += 1
-                    MantaBND += 1
+                frags[key]=1
+        # Output all canvas fragments for the same feature
+        cnvres = o[vcf][feature][bedfeature].keys()
+        cnvres = ','.join(cnvres)
+        # print(cnvres,'\t',end='',sep='\t',file=ou)
 
-            # identify Dels - can be problematic
-            elif "MantaDEL" in row[2]:
-                # some Dels columns out of sync with no ref or QUAL field so need to find end value from appropated field
-                if len(row) ==11:
-                    end = row[7].split(';')[0]
-                    QUAL = row[5]
-                    vcffilter = row[6]
+    print(len(frags),sep='\t',end='\t',file=ou) #3
+    print_dict(frags) #4
 
-                elif len(row) < 11:
-                    #check which column end and Filter criteria are in
-                    if "END=" in row[5]:
-                        end = row[5].split(';')[0]
-                        QUAL = "."
-                        vcffilter = row[4]
-                    elif "END=" in row[6]:
-                        end = row[6].split(';')[0]
-                        QUAL = "."
-                        vcffilter = row[4]
-                    else:
-                        pass
+
+def calculate_events(data):
+
+    '''Tally up gain, loss, and PASS/fail across all regions of the feature'''
+
+    # How large % of the feature is covered by PASS gain/loss/loh,ref?
+    totlen=0
+    totlenpass=0
+    events={}
+    eventspass={}
+    eventlen={}
+
+
+    # Are there both gain and loss in the same feature?
+
+    for bedfeature, value2 in data.items():
+
+        for bedregion, value3 in data[bedfeature].items():
+            cops = int(data[bedfeature][bedregion]['Copies'])
+            # print("1", bedregion, cops)
+
+            # if data[bedfeature][bedregion]['Event'] == 'Gain':
+            if data[bedfeature][bedregion]['Event'] in events:
+                events[data[bedfeature][bedregion]['Event']] += 1
+            else:
+                events[data[bedfeature][bedregion]['Event']] = 1
+                #print("New event:",data[bedfeature][bedregion]['Event'])
+
+            if data[bedfeature][bedregion]['Filter'] == 'PASS':
+                if data[bedfeature][bedregion]['Event'] in eventspass:
+                    eventspass[data[bedfeature][bedregion]['Event']] += 1
                 else:
-                    pass
-                end = "".join(i for i in end if i.isdigit())
-                # add to tallys
-                if "PASS" in row:
-                    MantaT += 1
-                    MantaDEL += 1
+                    eventspass[data[bedfeature][bedregion]['Event']] = 1
 
-            # Finds invs
-            elif "MantaINV" in row[2]:
-                end = row[7].split(';')[0]
-                end = "".join(i for i in end if i.isdigit())
-                QUAL = row[5]
-                vcffilter = row[6]
-                # add to tallys
-                if "PASS" in row:
-                    MantaT += 1
-                    MantaINV += 1
-            # find DUPs
-            elif "MantaDUP" in row[2]:
-                end = row[7].split(';')[0]
-                end = "".join(i for i in end if i.isdigit())
-                QUAL = row[5]
-                vcffilter = row[6]
-                # add to tallys
-                if "PASS" in row:
-                    MantaT += 1
-                    MantaDUP += 1
+    #print(len(events),end='\t',sep='\t',file=ou)
+    print_dict(events) #5
+    print(len(eventspass), end='\t', sep='\t',file=ou) #6
+    print_dict(eventspass) #7
 
-            # write to tsv. If first record do not add the \n
-            if len(tsvout) < 1:
-                # sample chr start end QUAL Filter tool change
-                tsvout += sample + "\t" + row[0] + "\t" + row[1] + "\t" + end + "\t" + QUAL + "\t" + vcffilter + \
-                          "\tManta\t" + varID[0]
+    # How large part of the total length is covered by gain, loss, etc
+    for bedfeature, value2 in data.items():
+
+        for bedregion,value3 in data[bedfeature].items():
+            cops = int(data[bedfeature][bedregion]['Copies'])
+            lens = int(data[bedfeature][bedregion]['Len'])
+            evs = data[bedfeature][bedregion]['Event']
+            totlen = totlen + lens
+            #print("2", bedregion, lens, cops)
+
+            # Only count PASS events
+            if data[bedfeature][bedregion]['Filter'] == 'PASS':
+                totlenpass = totlenpass + lens
+
+                if evs in eventlen:
+                    eventlen[evs] += lens
+                    #print ("Is",evs,eventlen[evs])
+                else:
+                    eventlen[evs]=lens
+                    #print("St", evs, eventlen[evs])
+
+    for even,eventlens in eventlen.items():
+        #print(even, totlen, (eventlen[even]/totlen))
+        eventlen[even]=(eventlen[even]/totlen)
+
+    #print("SEP",totlenpass/totlen,sep='\t',end='\t',file=ou)
+    #print_dict(eventlen)
+    print_dict(eventlen) #8
+    print(totlen, totlenpass,end='\t',sep='\t',file=ou) #9
+    return(totlen,totlenpass) #10
+
+
+def calculate_coverage(data,totlen):
+
+    '''Calculate minimum, maximum and average coverage across all regions of the feature'''
+
+    # Max min and average coverage
+    minpass = int(1000000)
+    maxpass = 0
+    minany = int(1000000)
+    maxany = 0
+    dpave = {}
+    dpavepass = {}
+    dpav = 0
+    dpavpass = 0
+
+    # Check max,min and average coverage for the entire feature
+
+    for bedfeature, value2 in data.items():
+
+        for bedregion,value3 in data[bedfeature].items():
+            cops = int(data[bedfeature][bedregion]['Copies'])
+            lens = int(data[bedfeature][bedregion]['Len'])
+            #print("3",bedregion,lens, cops)
+
+            if data[bedfeature][bedregion]['Filter']=='PASS':
+                if cops > maxpass:
+                    maxpass=cops
+                if cops < minpass:
+                    minpass=cops
+
+                # Add value to average
+                if cops in dpavepass:
+                    dpavepass[cops] += lens
+                    #print ("Is",cops,dpavepass[cops])
+                else:
+                    dpavepass[cops]=lens
+                    #print("St",cops,dpavepass[cops])
+            #else:
+                #print ("ANY",data[bedfeature][bedregion]['Filter'])
+
+            # Update man and mean
+            if  cops > maxany:
+                maxany=cops
+            if cops < minany:
+                minany = cops
+
+            # Add value to average
+            if cops in dpave:
+                dpave[cops] += lens
+                #print ("Is",cops,dpave[cops])
             else:
-                tsvout += "\n" + sample + "\t" + row[0] + "\t" + row[1] + "\t" + end + "\t" + QUAL + "\t" + vcffilter + \
-                          "\tManta\t" + varID[0]
-            print(tsvout)
-        else:
-            pass
+                dpave[cops]=lens
+                #print("St",cops,dpave[cops])
+
+            # Calculate average for all
+            for cove,val4 in dpave.items():
+                dpav+=(cove*val4)
+            dpav=dpav/totlen
+
+            # Calculate average for PASS
+            for cove,val4 in dpavepass.items():
+                dpavpass+=(cove*val4)
+            if totlenpass > 0:
+                dpavpass=dpavpass/totlenpass
+            else:
+                dpavpass=0
+
+    print((totlenpass / totlen), sep='\t', end='\t', file=ou) # 11
+
+    if minany==int(1000000):
+        minany='NA'
+    if minpass==int(1000000):
+        minpass='NA'
+
+    # Max depth all
+    # Average depth PASS
+    # Average depth all
+    print(minpass, maxpass, minany, maxany, "%0.2f" % dpav, "%0.2f" % dpavpass, sep='\t', end='\t', file=ou) # 12,13,14,15,16,17
 
 
-tally_out = open(output, 'w')
-tally_out.write("Sample\tcanvas_Total\tcanvas_Gain\tcanvas_Loss\tManta_Total\tManta_BND\tManta_DEL\tManta_INV\tMantaDUP\n")
-tally_out.write(str(sample) + "\t" + str(canvasT)+ "\t" + str(canvasGain) + "\t" + str(canvasLoss)+ "\t" +
-                str(MantaT) + "\t" + str(MantaBND)+ "\t" + str(MantaDEL)+ "\t" +str(MantaINV) +"\t" + str(MantaDUP) + "\n")
-tally_out.close()
 
-"""
+def calculate_recall(data):
+
+    ''' This section is for comparing reference file -b with inputs -i, if there is match in event, length and coverage'''
 
 
-out.close()
+    # Check how many % of any region is shared, and % of PASS region shared event
+    #print("DATA:",data)
 
-exit(0)
+    for bedfeature, value2 in data.items():
+
+        shared_filt=0
+        shared_event=0
+        shared_cov=0
+        totlen = 0
+        totlenpass = 0
+        diff=0
+        covs=0
+
+        for bedregion,value3 in data[bedfeature].items():
+
+            #try:
+            event = data[bedfeature][bedregion]['Event']
+            #except:
+            #    print("EXCEPT:",vcf, ele[23], bedfeature, bedregion)
+            #try:
+            eventR = data[bedfeature][bedregion]['EventR']
+            #except:
+                #print("EXCEPT:",vcf, ele[23], bedfeature, bedregion)
+
+            filt = data[bedfeature][bedregion]['Filter']
+            filtR = data[bedfeature][bedregion]['FilterR']
+
+            cops = int(data[bedfeature][bedregion]['Copies'])
+            copsR = int(data[bedfeature][bedregion]['CopiesR'])
+
+            lens = int(data[bedfeature][bedregion]['Len'])
+
+            # Calcualate lengths
+            totlen = totlen + lens
+            #print(lens)
+            # Only count PASS events
+            if filt == 'PASS':
+                totlenpass = totlenpass + lens
+
+
+
+            # Are they shared PASS/FAIL %
+            if filt==filtR:
+                shared_filt+=lens
+                #print (shared_filt, filt, filtR)
+            #else:
+                #print("ELSE",shared_filt, filt, filtR)
+                #pass
+
+            # Are they shared gain/loss %
+            if event==eventR:
+                shared_event += lens
+
+            # With a secret save for LOH
+            if (event=="LOH" and eventR=="LOSS") or (event=="LOSS" and eventR=="LOH"):
+                shared_event += lens
+
+            # Are they shared copy-number %
+            if cops==copsR:
+                shared_cov += lens
+                #print ("IS", bedregion,lens,cops, copsR,sep='\t')
+            #else:
+                #print("NOT",bedregion,lens,cops, copsR, sep='\t')
+
+            # Average coverage difference
+            diff+=((abs(int(cops)-int(copsR)))*lens)
+            #print((abs(cops-copsR)), cops, copsR, cops-copsR ,lens,sep='\t')
+            #if data[bedfeature][bedregion]['Filter'] == 'PASS':
+
+            # Average coverage
+            covs+=(int(cops)*lens)
+
+
+
+    # Calculate for the feature, if there is match
+        print("%0.2f" % (shared_filt/totlen), "%0.2f" % (shared_event/totlen), "%0.2f" % (shared_cov/totlen), "%0.2f" % (diff/totlen), "%0.2f" %  (covs/totlen) , sep='\t', end='\t',file=ou) # 18,19,20,21,22
+
+        return(totlen,(shared_filt),(shared_event),(shared_cov),(diff))
+
+
+#####################################################################
+#### Outputs ####
+
+print("File","TotLen","FiltOvl%","EventOvl%","CovOvl%","CovDiff%",sep='\t',file=rp)
+
+for vcf,value in o.items():
+
+    print(vcf,'\t',sep='\t',end='',file=rp)
+
+    totlenSum=0.0
+    filtSum=0.0
+    eventSum=0.0
+    covSum=0.0
+    diffSum=0.0
+
+    for feature, value in o[vcf].items():
+        print(vcf,feature, sep='\t', end='\t', file=ou)  # 1,2
+
+        calculate_fragments(o[vcf][feature])
+        #print ("LEN1:",o[vcf][feature])
+        totlen, totlenpass = calculate_events(o[vcf][feature])
+        #print ("LEN2:",o[vcf][feature])
+        calculate_coverage(o[vcf][feature],totlen)
+        #print ("LEN3:",o[vcf][feature])
+        totlen,shared_filt,shared_event,shared_cov,diffs= calculate_recall(o[vcf][feature])
+        #print ("LEN4:",o[vcf][feature])
+
+        totlenSum+=totlen
+        filtSum+=shared_filt
+        eventSum+=shared_event
+        covSum+=shared_cov
+        diffSum+=diffs
+
+        print('\n', end='', file=ou)
+
+    print ( bedtot, totlenSum, "%0.4f" % (totlenSum/bedtot), "%0.4f" % (filtSum/bedtot), "%0.4f" % (eventSum/bedtot),  "%0.4f" % (covSum/bedtot),  "%0.4f" % (diffSum/bedtot), sep='\t', end='\n', file=rp)
+    #print (  "%0.4f" %  (totlenSum/bedtot), sep='\t', end='\n', file=rp)
+
+ou.close()
+rp.close()
+
+
+quit()
+
+
+
+
+
